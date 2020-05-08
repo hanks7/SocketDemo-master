@@ -6,11 +6,9 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
-import com.yzq.socketdemo.ReciveListener;
-import com.yzq.socketdemo.SocketListener;
 import com.yzq.socketdemo.common.Constants;
 import com.yzq.socketdemo.common.EventMsg;
 
@@ -51,15 +49,7 @@ public class SocketService extends Service {
     /*默认重连*/
     private boolean isReConnect = true;
 
-    private Handler handler = new Handler(Looper.getMainLooper()) {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case 1:
-                    break;
-            }
-        }
-    };
+    private Handler handler = new Handler(Looper.getMainLooper());
 
 
     @Override
@@ -167,7 +157,6 @@ public class SocketService extends Service {
 
     /**
      * 发送数据
-     *
      * @param order
      */
     public void sendOrder(final String order) {
@@ -194,6 +183,8 @@ public class SocketService extends Service {
             toastMsg("socket连接错误,请重试");
         }
     }
+
+
 
 
     /**
@@ -232,6 +223,7 @@ public class SocketService extends Service {
 
         timer.schedule(task, 0, 2000);
     }
+
 
 
     /**
@@ -277,15 +269,16 @@ public class SocketService extends Service {
 
     /**
      * 因为Toast是要运行在主线程的   所以需要到主线程哪里去显示toast
-     *
-     * @param strMsgContent
+     * @param msg
      */
-    private void toastMsg(final String strMsgContent) {
-        Message msg = new Message();
-        msg.obj = strMsgContent;
-        msg.what = 1;
-        handler.sendMessage(msg);
+    private void toastMsg(final String msg) {
 
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -296,17 +289,6 @@ public class SocketService extends Service {
         releaseSocket();//释放资源
     }
 
-    class BinderControl extends Binder implements SocketListener {
 
-        @Override
-        public void sendMessage(String msg) {
-
-        }
-
-        @Override
-        public void recivie(ReciveListener listener) {
-
-        }
-    }
 
 }
