@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.yzq.socketdemo.BaseApplication;
 import com.yzq.socketdemo.R;
 import com.yzq.socketdemo.common.Constants;
 import com.yzq.socketdemo.common.EventMsg;
@@ -70,8 +71,10 @@ public class ConnectActivity extends BaseActivity {
 
         /*启动service*/
         Intent intent = new Intent(getApplicationContext(), SocketService.class);
-        intent.putExtra(Constants.INTENT_IP, ip);
-        intent.putExtra(Constants.INTENT_PORT, port);
+        BaseApplication.APP.ip=ip;
+        BaseApplication.APP.port=port;
+
+
         startService(intent);
 
 

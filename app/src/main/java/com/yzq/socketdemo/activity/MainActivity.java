@@ -8,7 +8,10 @@ import android.os.IBinder;
 import android.widget.EditText;
 
 import com.yzq.socketdemo.R;
+import com.yzq.socketdemo.ReciveListener;
+import com.yzq.socketdemo.SocketListener;
 import com.yzq.socketdemo.service.SocketService;
+import com.yzq.socketdemo.utils.UToast;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -25,7 +28,7 @@ public class MainActivity extends BaseActivity {
     EditText contentEt;
 
     private ServiceConnection connection;
-    public SocketService socketService;
+    private SocketListener listener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,8 +45,9 @@ public class MainActivity extends BaseActivity {
         connection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-                SocketService.SocketBinder binder = (SocketService.SocketBinder) iBinder;
-                socketService = binder.getService();
+                listener = (SocketListener) iBinder;
+                listener.setReceiveListener(reciveListener);
+
 
             }
 
@@ -58,12 +62,23 @@ public class MainActivity extends BaseActivity {
         bindService(intent, connection, BIND_AUTO_CREATE);
     }
 
+    ReciveListener reciveListener = new ReciveListener() {
+        @Override
+        public void getData(String content) {
+            UToast.showText("新消息 : "+ content);
+        }
+    };
+
+
     @OnClick(R.id.sendBtn)
     public void onViewClicked() {
 
         String data = contentEt.getText().toString().trim();
-
-        socketService.sendOrder(data);
+        if (listener != null) {
+            listener.sendMessage(data);
+        } else {
+            UToast.showText("SocketListener为null");
+        }
     }
 
 

@@ -6,18 +6,23 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
-import android.widget.Toast;
 
+import com.yzq.socketdemo.BaseApplication;
+import com.yzq.socketdemo.ReciveListener;
+import com.yzq.socketdemo.SocketListener;
 import com.yzq.socketdemo.common.Constants;
 import com.yzq.socketdemo.common.EventMsg;
+import com.yzq.socketdemo.utils.UToast;
+import com.yzq.socketdemo.utils.Ulog;
 
 import org.greenrobot.eventbus.EventBus;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
@@ -34,61 +39,51 @@ import java.util.TimerTask;
  */
 public class SocketService extends Service {
 
-    /*socket*/
     private Socket socket;
-    /*连接线程*/
-    private Thread connectThread;
-    private Timer timer = new Timer();
+    private Thread connectThread;//连接线程
     private OutputStream outputStream;
 
-    private SocketBinder sockerBinder = new SocketBinder();
-    private String ip;
-    private String port;
+
+    private Timer timer;
     private TimerTask task;
 
-    /*默认重连*/
+
+    /**
+     * 默认重连
+     */
     private boolean isReConnect = true;
 
-    private Handler handler = new Handler(Looper.getMainLooper());
+    private Handler handler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case 1:
+                    UToast.showText(msg.obj);
+                    break;
+            }
+        }
+    };
 
 
     @Override
     public IBinder onBind(Intent intent) {
-        return sockerBinder;
-    }
-
-
-    public class SocketBinder extends Binder {
-
-        /*返回SocketService 在需要的地方可以通过ServiceConnection获取到SocketService  */
-        public SocketService getService() {
-            return SocketService.this;
-        }
+        return new BinderControl();
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-
-
     }
-
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
-        /*拿到传递过来的ip和端口号*/
-        ip = intent.getStringExtra(Constants.INTENT_IP);
-        port = intent.getStringExtra(Constants.INTENT_PORT);
-
-        /*初始化socket*/
         initSocket();
-
         return super.onStartCommand(intent, flags, startId);
     }
 
-
-    /*初始化socket*/
+    /**
+     * 初始化socket
+     */
     private void initSocket() {
         if (socket == null && connectThread == null) {
             connectThread = new Thread(new Runnable() {
@@ -98,13 +93,13 @@ public class SocketService extends Service {
                     socket = new Socket();
                     try {
                         /*超时时间为2秒*/
-                        socket.connect(new InetSocketAddress(ip, Integer.valueOf(port)), 2000);
+                        socket.connect(new InetSocketAddress(BaseApplication.APP.ip, Integer.valueOf(BaseApplication.APP.port)), 2000);
                         /*连接成功的话  发送心跳包*/
-                        if (socket.isConnected()) {
+                        if (socket!=null&&socket.isConnected()) {
 
 
                             /*因为Toast是要运行在主线程的  这里是子线程  所以需要到主线程哪里去显示toast*/
-                            toastMsg("socket已连接");
+                            showToast("socket已连接");
 
                             /*发送连接成功的消息*/
                             EventMsg msg = new EventMsg();
@@ -113,17 +108,15 @@ public class SocketService extends Service {
 
                             sendBeatData();//发送心跳数据
 
-                            BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                            String line = br.readLine();
-                            Log.i("Android", "与服务器建立连接：" + line);
-                            ;
+                            getReceiveData();//接收数据
+
                         }
 
 
                     } catch (IOException e) {
                         e.printStackTrace();
                         if (e instanceof SocketTimeoutException) {
-                            toastMsg("连接超时，正在重连");
+                            showToast("连接超时，正在重连");
 
                             releaseSocket(); //释放资源
                             if (isReConnect) {
@@ -131,11 +124,11 @@ public class SocketService extends Service {
                             }
 
                         } else if (e instanceof NoRouteToHostException) {
-                            toastMsg("该地址不存在，请检查");
+                            showToast("该地址不存在，请检查");
                             stopSelf();
 
                         } else if (e instanceof ConnectException) {
-                            toastMsg("连接异常或被拒绝，请检查");
+                            showToast("连接异常或被拒绝，请检查");
                             stopSelf();
 
                         }
@@ -154,9 +147,9 @@ public class SocketService extends Service {
 
     }
 
-
     /**
      * 发送数据
+     *
      * @param order
      */
     public void sendOrder(final String order) {
@@ -180,12 +173,59 @@ public class SocketService extends Service {
             }).start();
 
         } else {
-            toastMsg("socket连接错误,请重试");
+            showToast("socket连接错误,请重试");
+            releaseSocket(); //释放资源
+            if (isReConnect) {
+                initSocket();//重新链接初始化socket
+            }
         }
     }
 
+    /**
+     * 接收数据
+     *
+     * @throws IOException
+     */
+    private void getReceiveData() throws IOException {
+        while (true) {
+            try {
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(socket.getInputStream());
+                if (bufferedInputStream.available() > 0) {
+                    byte[] receive = new byte[12];
+                    bufferedInputStream.read(receive);
+                    Ulog.i("getReceiveData", getMess(receive));
+                    if (mListener != null) {
+                        mListener.getData(getMess(receive));
+                    }
+                } else {
+                    Thread.sleep(50);
+                }
+            } catch (Exception e) {
+                /*发送失败说明socket断开了或者出现了其他错误*/
+                showToast("连接断开，正在重连");
 
+                releaseSocket(); //释放资源
+                if (isReConnect) {
+                    initSocket();//重新链接初始化socket
+                }
+                e.printStackTrace();
+            }
+        }
 
+    }
+
+    private String getMess(byte[] result) throws UnsupportedEncodingException {
+        String temp=new String(result);
+
+//识别编码
+        if(temp.contains("utf-8")){
+            return new String(result,"utf-8");
+        }else if(temp.contains("gb2312")){
+            return new String(result,"gb2312");
+        }else{
+            return new String(result,"utf-8");
+        }
+    }
 
     /**
      * 发送心跳数据
@@ -203,11 +243,11 @@ public class SocketService extends Service {
                         outputStream = socket.getOutputStream();
 
                         /*这里的编码方式根据你的需求去改*/
-                        outputStream.write(("test").getBytes("gbk"));
+                        outputStream.write(("心跳包").getBytes("gbk"));
                         outputStream.flush();
                     } catch (Exception e) {
                         /*发送失败说明socket断开了或者出现了其他错误*/
-                        toastMsg("连接断开，正在重连");
+                        showToast("连接断开，正在重连");
 
                         releaseSocket(); //释放资源
                         if (isReConnect) {
@@ -221,9 +261,8 @@ public class SocketService extends Service {
             };
         }
 
-        timer.schedule(task, 0, 2000);
+        timer.schedule(task, 0, 12000);
     }
-
 
 
     /**
@@ -268,17 +307,14 @@ public class SocketService extends Service {
 
 
     /**
-     * 因为Toast是要运行在主线程的   所以需要到主线程哪里去显示toast
-     * @param msg
+     * @param strMsgContent
      */
-    private void toastMsg(final String msg) {
+    private void showToast(final String strMsgContent) {
+        Message msg = new Message();
+        msg.obj = strMsgContent;
+        msg.what = 1;
+        handler.sendMessage(msg);
 
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
-            }
-        });
     }
 
     @Override
@@ -289,6 +325,24 @@ public class SocketService extends Service {
         releaseSocket();//释放资源
     }
 
+    ReciveListener mListener;
 
+    class BinderControl extends Binder implements SocketListener {
+
+        @Override
+        public void sendMessage(String msg) {
+            sendOrder(msg);
+        }
+
+        @Override
+        public void setReceiveListener(ReciveListener listener) {
+            mListener = listener;
+        }
+
+        @Override
+        public void init() {
+            initSocket();
+        }
+    }
 
 }

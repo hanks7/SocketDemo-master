@@ -7,5 +7,6 @@ package com.yzq.socketdemo;
  */
 public interface SocketListener {
     void sendMessage(String msg);
-    void recivie(ReciveListener listener);
+    void setReceiveListener(ReciveListener listener);
+    void init();
 }
