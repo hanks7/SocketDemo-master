@@ -1,0 +1,40 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 28
+    defaultConfig {
+        applicationId "com.yzq.socketdemo"
+        minSdkVersion 16
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    compileOptions {
+        sourceCompatibility 1.8
+        targetCompatibility 1.8
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.2.0-beta01'
+    //butterknife
+    //noinspection GradleDependency
+    implementation 'com.jakewharton:butterknife:10.0.0'  //  this
+    //noinspection GradleDependency
+    annotationProcessor 'com.jakewharton:butterknife-compiler:10.0.0'  //  this
+
+    implementation 'org.greenrobot:eventbus:3.0.0'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation('androidx.test.espresso:espresso-core:3.3.0-beta01', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    implementation 'androidx.recyclerview:recyclerview:1.2.0-alpha03'
+}
