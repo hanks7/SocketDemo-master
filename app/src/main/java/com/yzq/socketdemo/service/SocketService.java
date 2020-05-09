@@ -9,18 +9,16 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.yzq.socketdemo.BaseApplication;
 import com.yzq.socketdemo.ReciveListener;
 import com.yzq.socketdemo.SocketListener;
 import com.yzq.socketdemo.common.Constants;
 import com.yzq.socketdemo.common.EventMsg;
 import com.yzq.socketdemo.utils.UToast;
-import com.yzq.socketdemo.utils.Ulog;
 
 import org.greenrobot.eventbus.EventBus;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
@@ -60,6 +58,11 @@ public class SocketService extends Service {
                 case 1:
                     UToast.showText(msg.obj);
                     break;
+                case 100:
+                    if (mListener != null) {
+                        mListener.getData(msg.obj+"");
+                    }
+                    break;
             }
         }
     };
@@ -93,9 +96,9 @@ public class SocketService extends Service {
                     socket = new Socket();
                     try {
                         /*超时时间为2秒*/
-                        socket.connect(new InetSocketAddress(BaseApplication.APP.ip, Integer.valueOf(BaseApplication.APP.port)), 2000);
+                        socket.connect(new InetSocketAddress("172.16.1.132", Integer.valueOf("8080")), 2000);
                         /*连接成功的话  发送心跳包*/
-                        if (socket!=null&&socket.isConnected()) {
+                        if (socket != null && socket.isConnected()) {
 
 
                             /*因为Toast是要运行在主线程的  这里是子线程  所以需要到主线程哪里去显示toast*/
@@ -189,17 +192,20 @@ public class SocketService extends Service {
     private void getReceiveData() throws IOException {
         while (true) {
             try {
-                BufferedInputStream bufferedInputStream = new BufferedInputStream(socket.getInputStream());
-                if (bufferedInputStream.available() > 0) {
-                    byte[] receive = new byte[12];
-                    bufferedInputStream.read(receive);
-                    Ulog.i("getReceiveData", getMess(receive));
-                    if (mListener != null) {
-                        mListener.getData(getMess(receive));
-                    }
-                } else {
-                    Thread.sleep(50);
+                InputStream inputStream=socket.getInputStream();
+                int size=-1;
+                byte[] bytes=new byte[20];
+                while ((size=inputStream.read(bytes))!=-1){
+                    String messa=new String(bytes,"GB2312");
+                    Message message=new Message();
+                    message.what=100;
+                    message.obj=messa;
+                    handler.sendMessage(message);
+//                clearCache
+                    bytes=new byte[20];
                 }
+
+
             } catch (Exception e) {
                 /*发送失败说明socket断开了或者出现了其他错误*/
                 showToast("连接断开，正在重连");
@@ -214,16 +220,18 @@ public class SocketService extends Service {
 
     }
 
+
+
     private String getMess(byte[] result) throws UnsupportedEncodingException {
-        String temp=new String(result);
+        String temp = new String(result);
 
 //识别编码
-        if(temp.contains("utf-8")){
-            return new String(result,"utf-8");
-        }else if(temp.contains("gb2312")){
-            return new String(result,"gb2312");
-        }else{
-            return new String(result,"utf-8");
+        if (temp.contains("utf-8")) {
+            return new String(result, "utf-8");
+        } else if (temp.contains("gb2312")) {
+            return new String(result, "gb2312");
+        } else {
+            return new String(result, "utf-8");
         }
     }
 
@@ -260,7 +268,6 @@ public class SocketService extends Service {
                 }
             };
         }
-
         timer.schedule(task, 0, 12000);
     }
 

@@ -6,6 +6,7 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import com.yzq.socketdemo.R;
 import com.yzq.socketdemo.ReciveListener;
@@ -26,6 +27,8 @@ import butterknife.OnClick;
 public class MainActivity extends BaseActivity {
     @BindView(R.id.contentEt)
     EditText contentEt;
+    @BindView(R.id.receiveContent)
+    TextView receiveContent;
 
     private ServiceConnection connection;
     private SocketListener listener;
@@ -65,7 +68,7 @@ public class MainActivity extends BaseActivity {
     ReciveListener reciveListener = new ReciveListener() {
         @Override
         public void getData(String content) {
-            UToast.showText("新消息 : "+ content);
+            receiveContent.append(content+"\n");
         }
     };
 

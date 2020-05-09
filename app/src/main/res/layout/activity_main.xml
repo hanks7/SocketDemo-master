@@ -11,14 +11,28 @@
 
         android:id="@+id/contentEt"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        />
+        android:layout_height="48dp" />
 
     <Button
         android:id="@+id/sendBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="发送"
-        />
+        android:text="发送" />
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/receiveContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                />
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>
